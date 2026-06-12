@@ -19,7 +19,9 @@ class DeepResearchConfig(BaseSettings):
 
     mongodb_uri: str = "mongodb://localhost:27017"
     mongodb_database: str = "deep_research"
-
+    research_project_collection_name = "research_projects"
+    research_task_collection_name = "research_tasks"
+    research_report_collection_name = "resarch_reports"
     llm_provider: str = "openai"
     llm_model_name: str = "gpt-4.1-mini"
     openai_api_base: str | None = None

@@ -19,10 +19,10 @@ from app.schema import (
     ProjectStatusEnum,
     NextStepEnum
 )
-from app.repository import research_project_repository
+from app.repository import research_project_repository as project_repo
 from app.repository import research_task_repository as task_repository
 from app.repository import report_repository
-from app.background import start_outline_generation,start_outline_revision,start_report_generate
+from app.background.research_tasks import start_outline_generation,start_outline_revision,start_report_generate
 from uuid import uuid4
 from datetime import datetime
 
@@ -57,12 +57,13 @@ async def create_project(research_create_request: ResearchCreateRequest):
     创建项目路由函数
     """
     # 1、创建一个空项目，通过project_repository，将项目的元数据信息，写到数据库
-    project_id = await research_project_repository.create_project(research_create_request)
+    project_id = await project_repo.create_project(research_create_request)
     # 2、创建一个生成 研究任务书和大纲 的任务，通过后台去启动这个任务
     # 2.1、通过task_repository，在数据库中，写入任务元数据信息
     task_id =  await task_repository.create_task(project_id=project_id,task_type = TaskTypeEnum.OUTLINE_GENERATION.value)
+    await project_repo.update_status(project_id,status = ProjectStatusEnum.BRIEF_GENERATING.value)
     # 2.2、后台运行任务
-    start_outline_generation(research_project = research_create_request, task_id = task_id)
+    start_outline_generation(research_project = research_create_request, task_id = task_id,project_id=project_id)
 
     # 处理逻辑
 
@@ -87,7 +88,7 @@ async def get_outline(project_id: str):
     
     """
     # 1、从数据库中读取到project_id所对应的项目
-    project:dict = await research_project_repository.get_project(project_id)
+    project:dict | None= await project_repo.get_project(project_id)
     if project is None:
         raise HTTPException(status_code=404,detail="当前项目不存在")
     
@@ -95,7 +96,7 @@ async def get_outline(project_id: str):
     # 2、将这个项目，转换成GetOutlineResponse
     return GetOutlineResponse(
         project_id=project_id,
-        status="",
+        status=project["status"],
         outline=[convert_outline_dict_2_outline_node(outline) for outline in outlines]
     )
 
@@ -108,10 +109,12 @@ async def save_outline(project_id: str, request: SaveOutlineRequest):
     """确认大纲或提交大纲修改意见"""
     # 1、获取到用户的操作
     action = request.action
-    project = await research_project_repository.get_project(project_id)
+    project = await project_repo.get_project(project_id)
+    if project is None:
+        raise HTTPException(status_code=404,detail="当前项目不存在")
     if action == "confirm":
         # 1、修改项目状态，将项目状态调整成  outline_confirmed
-        await research_project_repository.update_status(project_id,status = ProjectStatusEnum.OUTLINE_CONFIRMED.value)
+        await project_repo.update_status(project_id,status = ProjectStatusEnum.OUTLINE_CONFIRMED.value)
         # 2、返回结果
         return SaveOutlineResponse(
             project_id=project_id,
@@ -121,9 +124,10 @@ async def save_outline(project_id: str, request: SaveOutlineRequest):
     elif action == "revise":
         # 1、生成一个task
         task_id = await task_repository.create_task(project_id = project_id,task_type = TaskTypeEnum.OUTLINE_REVISION.value)
-        # 2、后台调度task
-        start_outline_revision(research_project =project , task_id = task_id)
-
+        # 2、更新项目状态为大纲调整中
+        await project_repo.update_status(project_id,status = ProjectStatusEnum.OUTLINE_REVISING.value)
+        # 3、后台调度task
+        start_outline_revision(research_project =project , task_id = task_id,project_id=project_id,revision_instruction=request.revision_instruction)
         # 3、返给用户新的task id
         return SaveOutlineResponse(
             project_id=project_id,
@@ -138,13 +142,13 @@ async def save_outline(project_id: str, request: SaveOutlineRequest):
 async def create_report_task(project_id: str, request: GenerateReportRequest):
     """提交报告生成任务"""
     # 1、检查项目是否存在
-    project:dict = await research_project_repository.get_project(project_id)
+    project:dict | None= await project_repo.get_project(project_id)
     if project is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="没有当前项目")
     # 2、创建一个后台任务
     task_id = await task_repository.create_task(project_id = project_id,task_type = TaskTypeEnum.REPORT_GENERATION.value) 
-    await research_project_repository.update_status(project_id=project_id,status = ProjectStatusEnum.RESEARCH_RUNNING.value)
-    start_report_generate(task_id,project)
+    await project_repo.update_status(project_id=project_id,status = ProjectStatusEnum.RESEARCH_RUNNING.value)
+    start_report_generate(task_id,project_id,request.user_instruction)
     return GenerateReportResponse(task_id=task_id,project_id=project_id,task_type=TaskTypeEnum.REPORT_GENERATION.value,status=TaskStatusEnum.QUEUED.value)
 
 
@@ -168,7 +172,7 @@ async def get_task_status(task_id: str,):
 @router.get("/research-projects/{project_id}/reports/latest")
 async def get_latest_report(project_id: str):
     """获取最新报告"""
-    project:dict = await research_project_repository.get_project(project_id)
+    project:dict | None = await project_repo.get_project(project_id)
     if project is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="没有当前项目")
     latest_report :dict =await report_repository.get_latest_report(project_id)

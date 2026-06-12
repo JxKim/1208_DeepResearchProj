@@ -12,12 +12,13 @@ from pydantic import BaseModel, Field
 
 class ProjectStatusEnum(Enum):
     """
-    `brief_generating`、`outline_ready`、`outline_confirmed`、`research_running`、`report_ready`
+    `created` ,`brief_generating`、`outline_ready`、`outline_confirmed`、`research_running`、`report_ready`
     """
-
+    CREATED = "created"
     BRIEF_GENERATING = "brief_generating"
     OUTLINE_READY = "outline_ready"
     OUTLINE_CONFIRMED = "outline_confirmed"
+    OUTLINE_REVISING = "outline_revising"
     RESEARCH_RUNNING = "research_running"
     REPORT_READY = "report_ready"
 
@@ -41,9 +42,9 @@ class TaskTypeEnum(Enum):
         生成报告
     """
 
-    OUTLINE_GENERATION = "outline_generation"
-    OUTLINE_REVISION = "outline_revision"
-    REPORT_GENERATION = "report_generation"
+    OUTLINE_GENERATION = "generate_research_brief"
+    OUTLINE_REVISION = "revise_outline"
+    REPORT_GENERATION = "generate_report"
 
 
 class OutlineActionEnum(Enum):
