@@ -1,3 +1,5 @@
+from pkgutil import get_data
+
 from app.repository.mongodb import get_database
 from app.config.config import get_setting
 from app.schema import ResearchCreateRequest,ProjectStatusEnum
@@ -69,3 +71,22 @@ async def get_project(project_id) -> dict | None:
         {"_id":project_id},
     )
     return result
+
+
+async def get_outline(project_id) -> dict | None:
+
+    outline:dict | None = await get_database()[get_setting().research_project_collection_name].find_one(
+        {"_id":project_id},
+        projection = {"outline":1}
+    )
+
+    return outline
+
+async def get_confirmed_outline(project_id) -> dict | None:
+
+    outline:dict | None = await get_database()[get_setting().research_project_collection_name].find_one(
+        {"_id":project_id},
+        projection = {"confirmed_outline":1}
+    )
+
+    return outline

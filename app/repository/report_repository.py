@@ -1,6 +1,6 @@
 from app.repository.mongodb import get_database
 from app.config.config import get_setting
-from app.tools.storage_tool import save_report_html_to_file
+from app.tools.storage_tool import save_report_html_to_file, read_report_html_from_file
 from datetime import datetime
 from uuid import uuid4
 
@@ -15,7 +15,7 @@ async def save_html_result(html_result:dict,project_id):
     setting = get_setting()
     report : dict | None=  await get_database()[setting.research_report_collection_name].find_one(
         {"project_id":project_id},
-        sort = [{"version": -1}]
+        sort = [("version", -1)]
 
     )
     html_uri = await save_report_html_to_file(html=html_result["html"])
@@ -32,3 +32,18 @@ async def save_html_result(html_result:dict,project_id):
     }
 
     await get_database()[setting.research_report_collection_name].insert_one(report_version)
+
+
+async def get_latest_report(project_id:str) -> dict | None:
+    """
+    获取项目最新报告
+    """
+    setting = get_setting()
+    report = await get_database()[setting.research_report_collection_name].find_one(
+        {"project_id":project_id},
+        sort=[("version", -1)]
+    )
+    if report is None:
+        return None
+    report["html"] = await read_report_html_from_file(report["html_uri"])
+    return report

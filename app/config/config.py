@@ -19,9 +19,9 @@ class DeepResearchConfig(BaseSettings):
 
     mongodb_uri: str = "mongodb://localhost:27017"
     mongodb_database: str = "deep_research"
-    research_project_collection_name = "research_projects"
-    research_task_collection_name = "research_tasks"
-    research_report_collection_name = "resarch_reports"
+    research_project_collection_name: str = "research_projects"
+    research_task_collection_name: str = "research_tasks"
+    research_report_collection_name: str = "research_reports"
     llm_provider: str = "openai"
     llm_model_name: str = "gpt-4.1-mini"
     openai_api_base: str | None = None
@@ -32,7 +32,8 @@ class DeepResearchConfig(BaseSettings):
     ragflow_base_url: str | None = None
     ragflow_api_key: str | None = None
     tavily_api_key: str | None = None
-
+    # agent生成报告时，可以重试的次数
+    total_retry_times : int  = 5
     report_storage_backend: str = "local"
     report_storage_local_dir: str = "reports"
 
@@ -53,4 +54,3 @@ def get_setting() -> DeepResearchConfig:
     else:
         _settings = DeepResearchConfig()
         return _settings
-

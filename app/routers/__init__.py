@@ -1,7 +1,7 @@
 """
 定义路由函数
 """
-from fastapi import FastAPI, HTTPException,status,APIRouter
+from fastapi import HTTPException,status,APIRouter
 from app.schema import (
     OutlineNode,
     ResearchCreateRequest,
@@ -23,7 +23,6 @@ from app.repository import research_project_repository as project_repo
 from app.repository import research_task_repository as task_repository
 from app.repository import report_repository
 from app.background.research_tasks import start_outline_generation,start_outline_revision,start_report_generate
-from uuid import uuid4
 from datetime import datetime
 
 router = APIRouter()
@@ -35,7 +34,7 @@ def convert_outline_dict_2_outline_node(outline:dict)->OutlineNode:
             title=outline["title"],
             question=outline["question"],
             description=outline["description"],
-            children=[convert_outline_dict_2_outline_node(chile_node) for chile_node in outline["children"]] 
+            children=[convert_outline_dict_2_outline_node(child_node) for child_node in outline.get("children", [])] 
     )
 
     return outline_node
@@ -92,7 +91,7 @@ async def get_outline(project_id: str):
     if project is None:
         raise HTTPException(status_code=404,detail="当前项目不存在")
     
-    outlines = project["outlines"]
+    outlines = project.get("outline", [])
     # 2、将这个项目，转换成GetOutlineResponse
     return GetOutlineResponse(
         project_id=project_id,
@@ -157,8 +156,10 @@ async def create_report_task(project_id: str, request: GenerateReportRequest):
 async def get_task_status(task_id: str,):
     """查询后台任务状态"""
     task:dict = await task_repository.get_task(task_id)
+    if task is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="没有当前任务")
     return GetTaskStatusResponse(
-        task_id=task["id"],
+        task_id=task["_id"],
         project_id=task["project_id"],
         task_type= task["task_type"],
         status=task["status"],
@@ -176,9 +177,11 @@ async def get_latest_report(project_id: str):
     if project is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="没有当前项目")
     latest_report :dict =await report_repository.get_latest_report(project_id)
+    if latest_report is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="没有当前报告")
     return GetReportResponse(
         project_id=project_id,
-        report_id=latest_report["report_id"],
+        report_id=latest_report["_id"],
         version=latest_report["version"],
         title=latest_report["title"],
         html=latest_report["html"],

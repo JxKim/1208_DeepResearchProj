@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from app.config.config import get_setting
 from app.routers import router
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -22,5 +23,4 @@ app.add_middleware(
 )
 
 
-app.include_router(router=router)
-
+app.include_router(router=router, prefix=get_setting().api_prefix)

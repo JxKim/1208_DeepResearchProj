@@ -1,4 +1,3 @@
-from app.schema import TaskStatusEnum
 from app.repository.mongodb import get_database
 from app.config.config import get_setting
 from app.schema import TaskStatusEnum
@@ -35,7 +34,18 @@ async def update_status(task_id:str,task_status:TaskStatusEnum):
         {"_id":task_id},
         {
             "$set":{
-                "status":task_status.value
+                "status":task_status.value,
+                "updated_at": datetime.now()
             }
          }
+    )
+
+
+async def get_task(task_id:str) -> dict | None:
+    """
+    根据任务id查询任务状态
+    """
+    setting = get_setting()
+    return await get_database()[setting.research_task_collection_name].find_one(
+        {"_id":task_id}
     )

@@ -43,7 +43,7 @@ async def _start_outline_generation(research_project , task_id ,project_id):
 
         await task_repo.update_status(task_id=task_id,task_status=TaskStatusEnum.RUNNING)
         research_agent = get_research_agent()
-        outline:dict = await research_agent.generate_outline(project_id=project_id,research_project=research_project)
+        outline:dict = await research_agent.generate_outline(project_id=project_id,research_project=research_project,task_id=task_id)
 
         await project_repo.save_outline(outline,project_id)
 
@@ -70,7 +70,7 @@ async def _start_outline_revision(research_project , task_id ,project_id,revisio
 
         await task_repo.update_status(task_id=task_id,task_status=TaskStatusEnum.RUNNING)
         research_agent = get_research_agent()
-        outline = await research_agent.revise_outline(project_id=project_id,research_project=research_project,revision_instruction=revision_instruction)
+        outline = await research_agent.revise_outline(project_id=project_id,research_project=research_project,revision_instruction=revision_instruction,task_id=task_id)
 
         await project_repo.save_outline(outline,project_id)
 
@@ -101,7 +101,7 @@ async def _start_report_generate(task_id, project_id,user_instruction):
         research_agent = get_research_agent()
         # 可以在generate_research_result当中，通过project_id读取到大纲，让agent基于大纲和user_instruction去生成报告
         # 此处可以让大模型通过function call的形式，去构建各个章节的大纲
-        await research_agent.generate_research_result(project_id=project_id,user_instruction=user_instruction)
+        await research_agent.generate_research_result(project_id=project_id,user_instruction=user_instruction,task_id=task_id)
 
         research_result = await project_repo.get_research_result(project_id)
         # 通过write_html工具，将research_result渲染成一个html的结果
